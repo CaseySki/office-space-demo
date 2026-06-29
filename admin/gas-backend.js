@@ -23,7 +23,7 @@ function getConfig() {
     sheetId: props.getProperty('SHEET_ID'),
     adminPassword: props.getProperty('ADMIN_PASSWORD') || 'admin123',
     brokerPassword: props.getProperty('BROKER_PASSWORD') || 'broker123',
-    adminEmail: props.getProperty('ADMIN_EMAIL') || '',
+    adminEmail: props.getProperty('ADMIN_EMAIL') || 'caseysodolski@gmail.com',
   };
 }
 
