@@ -9,6 +9,7 @@
  *    - OWNER_PASSWORD: Password for owner access
  *    - BROKER_PASSWORD: Password for broker access
  *    - OWNER_EMAIL: Email address to receive notifications
+ *    - SITE_URL: URL of the admin panel (e.g. https://yoursite.github.io/office-space-demo/admin/)
  * 4. Deploy as Web App (Deploy > New deployment > Web app)
  *    - Execute as: Me
  *    - Who has access: Anyone
@@ -159,13 +160,20 @@ function submitChange(e) {
 
   if (config.ownerEmail) {
     try {
+      var siteUrl = props.getProperty('SITE_URL') || '';
+      var reviewLink = siteUrl ? siteUrl + '?review=' + id : '';
       MailApp.sendEmail({
         to: config.ownerEmail,
-        subject: 'New Change Request — Broker Admin Panel',
-        body: 'A broker submitted a ' + changeType + ' request for ' + targetTab +
-              ' (ID: ' + targetId + ').\n\nSubmitted by: ' + submittedBy +
-              '\nTimestamp: ' + timestamp +
-              '\n\nLog in to the admin panel to review.'
+        subject: 'New Change Request — ' + changeType + ' ' + targetTab,
+        htmlBody: '<h2>New Change Request</h2>' +
+          '<p><strong>Type:</strong> ' + changeType + '</p>' +
+          '<p><strong>Category:</strong> ' + targetTab + '</p>' +
+          '<p><strong>Item:</strong> ' + targetId + '</p>' +
+          '<p><strong>Submitted by:</strong> ' + submittedBy + '</p>' +
+          '<p><strong>Time:</strong> ' + timestamp + '</p>' +
+          '<p><strong>Details:</strong></p><pre>' + changeData + '</pre>' +
+          (reviewLink ? '<br><p><a href="' + reviewLink + '" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;">Review &amp; Approve</a></p>' : '') +
+          '<br><p style="color:#888;font-size:12px;">Broker Admin Panel</p>'
       });
     } catch (emailErr) {
       // Email sending may fail in some environments; don't block the request

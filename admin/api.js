@@ -94,7 +94,11 @@ const API = (() => {
             break;
           }
           case 'getPending':
-            resolve({ success: true, data: mockPending });
+            if (params.role === 'broker') {
+              resolve({ success: true, data: mockPending.filter(p => p.submittedBy === params.submittedBy) });
+            } else {
+              resolve({ success: true, data: mockPending });
+            }
             break;
           case 'approveChange': {
             const item = mockPending.find(p => p.id === params.changeId);
