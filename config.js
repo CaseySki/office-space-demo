@@ -7,7 +7,7 @@ const SITE_CONFIG = {
   COMPANY_TAGLINE: "Your next move starts here.",
   SITE_URL: "https://caseyski.github.io/office-space-demo/",
 
-  GOOGLE_SHEET_ID: "",
+  GOOGLE_SHEET_ID: "1a9GO0AUW5YIc_vEBwf-7v64b4XIxSh8TnIX5JI0ICBI",
   SHOW_LEASED: true,
 
   BRAND_COLOR: "#0369A1",
