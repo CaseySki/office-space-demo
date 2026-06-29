@@ -129,6 +129,17 @@ function applyBranding(oldName, oldNameFull, oldTagline) {
       .replace(new RegExp(escapeRegex(oldName), "g"), SITE_CONFIG.COMPANY_NAME)
       .replace(new RegExp(escapeRegex(oldTagline), "g"), SITE_CONFIG.COMPANY_TAGLINE);
   });
+  const initial = SITE_CONFIG.COMPANY_NAME.charAt(0).toUpperCase();
+  const color = SITE_CONFIG.BRAND_COLOR;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="${color}"/><text x="32" y="44" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="700" font-size="38" fill="#fff">${initial}</text></svg>`;
+  const blob = new Blob([svg], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  document.querySelectorAll('link[rel="icon"]').forEach(el => el.remove());
+  const link = document.createElement("link");
+  link.rel = "icon";
+  link.type = "image/svg+xml";
+  link.href = url;
+  document.head.appendChild(link);
 }
 
 async function loadAllData() {
