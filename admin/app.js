@@ -98,8 +98,8 @@ async function loadAllData() {
   suites = s.success ? s.data : [];
   contacts = c.success ? c.data : [];
 
-  if (currentRole === 'admin') {
-    const p = await API.callApi('getPending', { password: API.getSession()?.password || (ADMIN_CONFIG.DEMO_MODE ? 'admin123' : '') });
+  if (currentRole === 'owner') {
+    const p = await API.callApi('getPending', { password: API.getSession()?.password || (ADMIN_CONFIG.DEMO_MODE ? 'owner123' : '') });
     pending = p.success ? p.data : [];
   }
 
@@ -107,7 +107,7 @@ async function loadAllData() {
   renderBuildings();
   renderSuites();
   renderContacts();
-  if (currentRole === 'admin') renderPending();
+  if (currentRole === 'owner') renderPending();
 }
 
 // --- Dashboard ---
@@ -350,7 +350,7 @@ function openContactForm(contactName) {
 // --- Submit change ---
 async function submitChange(changeType, targetTab, targetId, data) {
   const result = await API.callApi('submitChange', {
-    password: ADMIN_CONFIG.DEMO_MODE ? (currentRole === 'admin' ? 'admin123' : 'broker123') : '',
+    password: ADMIN_CONFIG.DEMO_MODE ? (currentRole === 'owner' ? 'owner123' : 'broker123') : '',
     changeType,
     targetTab,
     targetId,
@@ -375,7 +375,7 @@ async function submitRemove(targetTab, targetId, displayName) {
 // --- Admin actions ---
 async function handleApprove(changeId) {
   const result = await API.callApi('approveChange', {
-    password: ADMIN_CONFIG.DEMO_MODE ? 'admin123' : '',
+    password: ADMIN_CONFIG.DEMO_MODE ? 'owner123' : '',
     changeId,
   });
   if (result.success) {
@@ -389,7 +389,7 @@ async function handleApprove(changeId) {
 async function handleDeny(changeId) {
   if (!confirm('Deny this change?')) return;
   const result = await API.callApi('denyChange', {
-    password: ADMIN_CONFIG.DEMO_MODE ? 'admin123' : '',
+    password: ADMIN_CONFIG.DEMO_MODE ? 'owner123' : '',
     changeId,
   });
   if (result.success) {

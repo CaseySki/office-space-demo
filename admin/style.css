@@ -126,7 +126,7 @@ tr:hover td { background: var(--gray-50); }
 .toast.error { background: var(--red); }
 
 /* Hide admin-only elements for brokers */
-body.role-broker .admin-only { display: none !important; }
+body.role-broker .owner-only { display: none !important; }
 
 /* Mobile */
 @media (max-width: 768px) {

@@ -34,7 +34,7 @@
         <p id="login-error" class="error-text"></p>
       </form>
       <p class="demo-hint" id="demo-hint" style="display:none">
-        Demo mode — use <strong>broker123</strong> (broker) or <strong>admin123</strong> (admin)
+        Demo mode — use <strong>broker123</strong> (broker) or <strong>owner123</strong> (owner)
       </p>
     </div>
   </div>
@@ -65,7 +65,7 @@
       <a href="#" class="nav-link" data-page="contacts">
         <span class="nav-icon">👤</span> Contacts
       </a>
-      <a href="#" class="nav-link admin-only" data-page="pending">
+      <a href="#" class="nav-link owner-only" data-page="pending">
         <span class="nav-icon">📋</span> Pending Changes
         <span class="badge" id="pending-count" style="display:none">0</span>
       </a>
@@ -88,7 +88,7 @@
             <div class="stat-number" id="stat-contacts">-</div>
             <div class="stat-label">Contacts</div>
           </div>
-          <div class="stat-card admin-only">
+          <div class="stat-card owner-only">
             <div class="stat-number" id="stat-pending">-</div>
             <div class="stat-label">Pending Changes</div>
           </div>
@@ -171,7 +171,7 @@
       </div>
 
       <!-- Pending Changes (admin only) -->
-      <div id="page-pending" class="page admin-only">
+      <div id="page-pending" class="page owner-only">
         <h2>Pending Changes</h2>
         <div id="pending-list" class="pending-list"></div>
         <p id="pending-empty" style="display:none" class="empty-state">No pending changes.</p>
