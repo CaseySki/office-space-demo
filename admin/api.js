@@ -63,7 +63,7 @@ const API = (() => {
       setTimeout(() => {
         switch (action) {
           case 'login':
-            if (params.password === 'admin123') resolve({ success: true, role: 'admin' });
+            if (params.password === 'owner123') resolve({ success: true, role: 'owner' });
             else if (params.password === 'broker123') resolve({ success: true, role: 'broker' });
             else resolve({ success: false, error: 'Invalid password' });
             break;
@@ -94,13 +94,17 @@ const API = (() => {
             break;
           }
           case 'getPending':
-            resolve({ success: true, data: mockPending });
+            if (params.role === 'broker') {
+              resolve({ success: true, data: mockPending.filter(p => p.submittedBy === params.submittedBy) });
+            } else {
+              resolve({ success: true, data: mockPending });
+            }
             break;
           case 'approveChange': {
             const item = mockPending.find(p => p.id === params.changeId);
             if (item) {
               item.status = 'approved';
-              item.reviewedBy = 'Admin';
+              item.reviewedBy = 'Owner';
               item.reviewedAt = new Date().toISOString();
               resolve({ success: true });
             } else {
@@ -112,7 +116,7 @@ const API = (() => {
             const d = mockPending.find(p => p.id === params.changeId);
             if (d) {
               d.status = 'denied';
-              d.reviewedBy = 'Admin';
+              d.reviewedBy = 'Owner';
               d.reviewedAt = new Date().toISOString();
               resolve({ success: true });
             } else {

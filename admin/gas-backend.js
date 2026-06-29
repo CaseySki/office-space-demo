@@ -6,9 +6,10 @@
  * 2. Paste this entire file into Code.gs
  * 3. Set the Script Properties (Project Settings > Script Properties):
  *    - SHEET_ID: Your Google Sheet ID
- *    - ADMIN_PASSWORD: Password for admin access
+ *    - OWNER_PASSWORD: Password for owner access
  *    - BROKER_PASSWORD: Password for broker access
- *    - ADMIN_EMAIL: Email address to receive notifications
+ *    - OWNER_EMAIL: Email address to receive notifications
+ *    - SITE_URL: URL of the admin panel (e.g. https://yoursite.github.io/office-space-demo/admin/)
  * 4. Deploy as Web App (Deploy > New deployment > Web app)
  *    - Execute as: Me
  *    - Who has access: Anyone
@@ -21,9 +22,9 @@ function getConfig() {
   const props = PropertiesService.getScriptProperties();
   return {
     sheetId: props.getProperty('SHEET_ID'),
-    adminPassword: props.getProperty('ADMIN_PASSWORD') || 'admin123',
+    ownerPassword: props.getProperty('OWNER_PASSWORD') || 'owner123',
     brokerPassword: props.getProperty('BROKER_PASSWORD') || 'broker123',
-    adminEmail: props.getProperty('ADMIN_EMAIL') || '',
+    ownerEmail: props.getProperty('OWNER_EMAIL') || 'caseysodolski@gmail.com',
   };
 }
 
@@ -96,8 +97,8 @@ function handleLogin(e) {
   const password = params.password || '';
   const config = getConfig();
 
-  if (password === config.adminPassword) {
-    return { success: true, role: 'admin' };
+  if (password === config.ownerPassword) {
+    return { success: true, role: 'owner' };
   }
   if (password === config.brokerPassword) {
     return { success: true, role: 'broker' };
@@ -131,7 +132,7 @@ function submitChange(e) {
   const password = params.password || '';
   const config = getConfig();
 
-  if (password !== config.brokerPassword && password !== config.adminPassword) {
+  if (password !== config.brokerPassword && password !== config.ownerPassword) {
     return { success: false, error: 'Unauthorized' };
   }
 
@@ -157,15 +158,22 @@ function submitChange(e) {
     changeData, submittedBy, 'pending', '', ''
   ]);
 
-  if (config.adminEmail) {
+  if (config.ownerEmail) {
     try {
+      var siteUrl = props.getProperty('SITE_URL') || '';
+      var reviewLink = siteUrl ? siteUrl + '?review=' + id : '';
       MailApp.sendEmail({
-        to: config.adminEmail,
-        subject: 'New Change Request — Broker Admin Panel',
-        body: 'A broker submitted a ' + changeType + ' request for ' + targetTab +
-              ' (ID: ' + targetId + ').\n\nSubmitted by: ' + submittedBy +
-              '\nTimestamp: ' + timestamp +
-              '\n\nLog in to the admin panel to review.'
+        to: config.ownerEmail,
+        subject: 'New Change Request — ' + changeType + ' ' + targetTab,
+        htmlBody: '<h2>New Change Request</h2>' +
+          '<p><strong>Type:</strong> ' + changeType + '</p>' +
+          '<p><strong>Category:</strong> ' + targetTab + '</p>' +
+          '<p><strong>Item:</strong> ' + targetId + '</p>' +
+          '<p><strong>Submitted by:</strong> ' + submittedBy + '</p>' +
+          '<p><strong>Time:</strong> ' + timestamp + '</p>' +
+          '<p><strong>Details:</strong></p><pre>' + changeData + '</pre>' +
+          (reviewLink ? '<br><p><a href="' + reviewLink + '" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;">Review &amp; Approve</a></p>' : '') +
+          '<br><p style="color:#888;font-size:12px;">Broker Admin Panel</p>'
       });
     } catch (emailErr) {
       // Email sending may fail in some environments; don't block the request
@@ -182,8 +190,8 @@ function getPendingChanges(e) {
   const password = params.password || '';
   const config = getConfig();
 
-  if (password !== config.adminPassword) {
-    return { success: false, error: 'Admin access required' };
+  if (password !== config.ownerPassword) {
+    return { success: false, error: 'Owner access required' };
   }
 
   const result = getTabData('PendingChanges');
@@ -197,8 +205,8 @@ function approveChange(e) {
   const password = params.password || '';
   const config = getConfig();
 
-  if (password !== config.adminPassword) {
-    return { success: false, error: 'Admin access required' };
+  if (password !== config.ownerPassword) {
+    return { success: false, error: 'Owner access required' };
   }
 
   const changeId = params.changeId || '';
@@ -217,7 +225,7 @@ function approveChange(e) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][idCol] === changeId) {
       sheet.getRange(i + 1, statusCol + 1).setValue('approved');
-      sheet.getRange(i + 1, reviewedByCol + 1).setValue('Admin');
+      sheet.getRange(i + 1, reviewedByCol + 1).setValue('Owner');
       sheet.getRange(i + 1, reviewedAtCol + 1).setValue(new Date().toISOString());
 
       applyChange(
@@ -241,8 +249,8 @@ function denyChange(e) {
   const password = params.password || '';
   const config = getConfig();
 
-  if (password !== config.adminPassword) {
-    return { success: false, error: 'Admin access required' };
+  if (password !== config.ownerPassword) {
+    return { success: false, error: 'Owner access required' };
   }
 
   const changeId = params.changeId || '';
@@ -257,7 +265,7 @@ function denyChange(e) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][idCol] === changeId) {
       sheet.getRange(i + 1, statusCol + 1).setValue('denied');
-      sheet.getRange(i + 1, reviewedByCol + 1).setValue('Admin');
+      sheet.getRange(i + 1, reviewedByCol + 1).setValue('Owner');
       sheet.getRange(i + 1, reviewedAtCol + 1).setValue(new Date().toISOString());
       return { success: true };
     }

@@ -9,6 +9,42 @@ let pending = [];
 // --- DOM refs ---
 const $ = id => document.getElementById(id);
 
+// --- Field definitions per category ---
+const FIELD_DEFS = {
+  Buildings: [
+    { id: 'building_id', label: 'Building ID', type: 'text' },
+    { id: 'building_name', label: 'Building Name', type: 'text' },
+    { id: 'address', label: 'Address', type: 'text' },
+    { id: 'city', label: 'City', type: 'text' },
+    { id: 'state', label: 'State', type: 'text' },
+    { id: 'zip', label: 'ZIP', type: 'text' },
+    { id: 'description', label: 'Description', type: 'textarea' },
+    { id: 'listing_type', label: 'Listing Type', type: 'select', options: [{ value: 'lease', label: 'Lease' }, { value: 'sale', label: 'Sale' }] },
+    { id: 'asking_price', label: 'Asking Price', type: 'text' },
+    { id: 'broker', label: 'Broker', type: 'text' },
+  ],
+  Suites: [
+    { id: 'suite_id', label: 'Suite ID', type: 'text' },
+    { id: 'building_id', label: 'Building', type: 'building-select' },
+    { id: 'suite_number', label: 'Suite Number', type: 'text' },
+    { id: 'floor', label: 'Floor', type: 'text' },
+    { id: 'square_feet', label: 'Square Feet', type: 'text' },
+    { id: 'lease_rate', label: 'Lease Rate', type: 'text' },
+    { id: 'rate_unit', label: 'Rate Unit', type: 'text', default: '/SF/yr' },
+    { id: 'status', label: 'Status', type: 'select', options: [{ value: 'Available', label: 'Available' }, { value: 'Pending', label: 'Pending' }, { value: 'Leased', label: 'Leased' }] },
+    { id: 'available_date', label: 'Available Date', type: 'date' },
+    { id: 'notes', label: 'Notes', type: 'textarea' },
+  ],
+  Contacts: [
+    { id: 'name', label: 'Name', type: 'text' },
+    { id: 'title', label: 'Title', type: 'text' },
+    { id: 'phone', label: 'Phone', type: 'tel' },
+    { id: 'email', label: 'Email', type: 'email' },
+  ],
+};
+
+const ID_FIELDS = { Buildings: 'building_id', Suites: 'suite_id', Contacts: 'name' };
+
 // --- Init ---
 document.addEventListener('DOMContentLoaded', () => {
   if (ADMIN_CONFIG.DEMO_MODE) $('demo-hint').style.display = 'block';
@@ -38,6 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
   $('btn-add-building').addEventListener('click', () => openBuildingForm(null));
   $('btn-add-suite').addEventListener('click', () => openSuiteForm(null));
   $('btn-add-contact').addEventListener('click', () => openContactForm(null));
+
+  // Broker request form
+  $('req-type').addEventListener('change', onRequestFormChange);
+  $('req-tab').addEventListener('change', onRequestFormChange);
+  $('req-target').addEventListener('change', onRequestTargetChange);
+  $('btn-submit-request').addEventListener('click', handleBrokerSubmit);
 });
 
 // --- Auth ---
@@ -68,13 +110,20 @@ function handleLogout() {
   $('login-password').value = '';
 }
 
-function enterApp() {
+async function enterApp() {
   $('page-login').classList.remove('active');
   $('app-shell').style.display = '';
   $('user-name').textContent = currentUser + ' (' + currentRole + ')';
   document.body.className = 'role-' + currentRole;
-  loadAllData();
-  navigateTo('dashboard');
+  await loadAllData();
+  const params = new URLSearchParams(window.location.search);
+  const reviewId = params.get('review');
+  if (reviewId && currentRole === 'owner') {
+    navigateTo('pending');
+    highlightPendingCard(reviewId);
+  } else {
+    navigateTo(currentRole === 'owner' ? 'dashboard' : 'submit-request');
+  }
 }
 
 // --- Navigation ---
@@ -98,19 +147,24 @@ async function loadAllData() {
   suites = s.success ? s.data : [];
   contacts = c.success ? c.data : [];
 
-  if (currentRole === 'admin') {
-    const p = await API.callApi('getPending', { password: API.getSession()?.password || (ADMIN_CONFIG.DEMO_MODE ? 'admin123' : '') });
+  if (currentRole === 'owner') {
+    const p = await API.callApi('getPending', { password: API.getSession()?.password || (ADMIN_CONFIG.DEMO_MODE ? 'owner123' : '') });
     pending = p.success ? p.data : [];
+    renderDashboard();
+    renderBuildings();
+    renderSuites();
+    renderContacts();
+    renderPending();
   }
 
-  renderDashboard();
-  renderBuildings();
-  renderSuites();
-  renderContacts();
-  if (currentRole === 'admin') renderPending();
+  if (currentRole === 'broker') {
+    const p = await API.callApi('getPending', { role: 'broker', submittedBy: currentUser });
+    pending = p.success ? p.data : [];
+    renderMyRequests();
+  }
 }
 
-// --- Dashboard ---
+// --- Dashboard (owner) ---
 function renderDashboard() {
   $('stat-buildings').textContent = buildings.length;
   $('stat-suites').textContent = suites.length;
@@ -127,7 +181,7 @@ function renderDashboard() {
   }
 }
 
-// --- Buildings table ---
+// --- Buildings table (owner) ---
 function renderBuildings() {
   const tbody = document.querySelector('#buildings-table tbody');
   tbody.innerHTML = buildings.map(b => `
@@ -146,7 +200,7 @@ function renderBuildings() {
   `).join('');
 }
 
-// --- Suites table ---
+// --- Suites table (owner) ---
 function renderSuites() {
   const tbody = document.querySelector('#suites-table tbody');
   tbody.innerHTML = suites.map(s => {
@@ -168,7 +222,7 @@ function renderSuites() {
   }).join('');
 }
 
-// --- Contacts table ---
+// --- Contacts table (owner) ---
 function renderContacts() {
   const tbody = document.querySelector('#contacts-table tbody');
   tbody.innerHTML = contacts.map(c => `
@@ -185,7 +239,7 @@ function renderContacts() {
   `).join('');
 }
 
-// --- Pending changes ---
+// --- Pending changes (owner) ---
 function renderPending() {
   const list = $('pending-list');
   const pendingItems = pending.slice().sort((a, b) => {
@@ -200,23 +254,244 @@ function renderPending() {
     return;
   }
   $('pending-empty').style.display = 'none';
+  list.innerHTML = pendingItems.map(renderPendingCard).join('');
+}
 
-  list.innerHTML = pendingItems.map(p => {
+function renderPendingCard(p) {
+  let changeObj = {};
+  try { changeObj = JSON.parse(p.changeData); } catch {}
+  const typeClass = 'type-' + p.changeType;
+  const statusClass = 'status-' + p.status;
+
+  let detailHtml = '<table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>';
+  for (const k in changeObj) {
+    detailHtml += `<tr><td>${esc(k)}</td><td>${esc(String(changeObj[k]))}</td></tr>`;
+  }
+  detailHtml += '</tbody></table>';
+
+  const actions = p.status === 'pending'
+    ? `<button class="btn btn-sm btn-success" onclick="handleApprove('${p.id}')">Approve</button>
+       <button class="btn btn-sm btn-danger" onclick="handleDeny('${p.id}')">Deny</button>`
+    : `<span style="font-size:.8rem;color:var(--gray-500);text-transform:uppercase">${esc(p.status)}</span>`;
+
+  return `
+    <div class="pending-card ${statusClass}">
+      <div class="pending-meta">
+        <span class="${typeClass}">${esc(p.changeType)}</span>
+        <span>${esc(p.targetTab)}</span>
+        <span>ID: ${esc(p.targetId)}</span>
+        <span>by ${esc(p.submittedBy)}</span>
+        <span>${new Date(p.timestamp).toLocaleString()}</span>
+      </div>
+      <div class="pending-detail">${detailHtml}</div>
+      <div class="pending-actions">${actions}</div>
+    </div>`;
+}
+
+// =============================================
+// BROKER: Submit Request form
+// =============================================
+
+function onRequestFormChange() {
+  const reqType = $('req-type').value;
+  const reqTab = $('req-tab').value;
+  const targetWrap = $('req-target-wrap');
+  const fields = $('req-fields');
+  const btn = $('btn-submit-request');
+
+  fields.innerHTML = '';
+  btn.disabled = true;
+
+  if (!reqType || !reqTab) {
+    targetWrap.style.display = 'none';
+    return;
+  }
+
+  if (reqType === 'edit' || reqType === 'remove') {
+    targetWrap.style.display = '';
+    populateTargetSelect(reqTab);
+  } else {
+    targetWrap.style.display = 'none';
+    $('req-target').value = '';
+    if (reqType === 'add') {
+      renderRequestFields(reqTab, null);
+      btn.disabled = false;
+    }
+  }
+}
+
+function populateTargetSelect(tab) {
+  const sel = $('req-target');
+  sel.innerHTML = '<option value="">— Select —</option>';
+  const items = getItemsForTab(tab);
+  const idField = ID_FIELDS[tab];
+  items.forEach(item => {
+    const id = item[idField];
+    const label = tab === 'Buildings' ? item.building_name
+      : tab === 'Suites' ? item.suite_number + ' (' + item.building_id + ')'
+      : item.name;
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = label;
+    sel.appendChild(opt);
+  });
+}
+
+function onRequestTargetChange() {
+  const reqType = $('req-type').value;
+  const reqTab = $('req-tab').value;
+  const targetId = $('req-target').value;
+  const fields = $('req-fields');
+  const btn = $('btn-submit-request');
+
+  fields.innerHTML = '';
+  btn.disabled = true;
+
+  if (!targetId) return;
+
+  if (reqType === 'remove') {
+    const items = getItemsForTab(reqTab);
+    const idField = ID_FIELDS[reqTab];
+    const item = items.find(i => String(i[idField]) === targetId);
+    const label = reqTab === 'Buildings' ? item?.building_name
+      : reqTab === 'Suites' ? item?.suite_number
+      : item?.name;
+    fields.innerHTML = `<p style="color:var(--gray-500)">You are requesting to remove <strong>${esc(label || targetId)}</strong>.</p>`;
+    btn.disabled = false;
+    return;
+  }
+
+  // edit
+  const items = getItemsForTab(reqTab);
+  const idField = ID_FIELDS[reqTab];
+  const existing = items.find(i => String(i[idField]) === targetId);
+  renderRequestFields(reqTab, existing);
+  btn.disabled = false;
+}
+
+function getItemsForTab(tab) {
+  if (tab === 'Buildings') return buildings;
+  if (tab === 'Suites') return suites;
+  if (tab === 'Contacts') return contacts;
+  return [];
+}
+
+function renderRequestFields(tab, existing) {
+  const container = $('req-fields');
+  container.innerHTML = '';
+  const defs = FIELD_DEFS[tab] || [];
+
+  defs.forEach(def => {
+    const val = existing ? (existing[def.id] || '') : (def.default || '');
+    const div = document.createElement('div');
+    div.className = 'form-group';
+
+    if (def.type === 'textarea') {
+      div.innerHTML = `<label for="req-f-${def.id}">${def.label}</label><textarea id="req-f-${def.id}">${esc(val)}</textarea>`;
+    } else if (def.type === 'select') {
+      const opts = def.options.map(o => `<option value="${esc(o.value)}" ${o.value === val ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
+      div.innerHTML = `<label for="req-f-${def.id}">${def.label}</label><select id="req-f-${def.id}">${opts}</select>`;
+    } else if (def.type === 'building-select') {
+      const bOpts = buildings.map(b => `<option value="${esc(b.building_id)}" ${b.building_id === val ? 'selected' : ''}>${esc(b.building_name)}</option>`).join('');
+      div.innerHTML = `<label for="req-f-${def.id}">${def.label}</label><select id="req-f-${def.id}"><option value="">— Select —</option>${bOpts}</select>`;
+    } else {
+      div.innerHTML = `<label for="req-f-${def.id}">${def.label}</label><input type="${def.type || 'text'}" id="req-f-${def.id}" value="${esc(val)}">`;
+    }
+
+    // For edits, make the ID field read-only
+    if (existing && def.id === ID_FIELDS[tab]) {
+      const input = div.querySelector('input');
+      if (input) input.readOnly = true;
+    }
+
+    container.appendChild(div);
+  });
+}
+
+async function handleBrokerSubmit() {
+  const reqType = $('req-type').value;
+  const reqTab = $('req-tab').value;
+  const targetId = $('req-target').value;
+
+  if (!reqType || !reqTab) return;
+
+  let data = {};
+  if (reqType !== 'remove') {
+    const defs = FIELD_DEFS[reqTab] || [];
+    defs.forEach(def => {
+      const el = $('req-f-' + def.id);
+      if (el) data[def.id] = el.value;
+    });
+  }
+
+  const idField = ID_FIELDS[reqTab];
+  const resolvedId = reqType === 'add' ? (data[idField] || 'NEW') : targetId;
+
+  const result = await API.callApi('submitChange', {
+    password: ADMIN_CONFIG.DEMO_MODE ? 'broker123' : '',
+    changeType: reqType,
+    targetTab: reqTab,
+    targetId: resolvedId,
+    changeData: JSON.stringify(data),
+    submittedBy: currentUser,
+  });
+
+  if (result.success) {
+    showToast('Request submitted — awaiting owner approval', 'success');
+    // Reset form
+    $('req-type').value = '';
+    $('req-tab').value = '';
+    $('req-target').value = '';
+    $('req-target-wrap').style.display = 'none';
+    $('req-fields').innerHTML = '';
+    $('btn-submit-request').disabled = true;
+    await loadAllData();
+  } else {
+    showToast(result.error || 'Failed to submit', 'error');
+  }
+}
+
+// --- Broker: My Requests ---
+function renderMyRequests() {
+  // In demo mode we can show all pending items submitted by this user
+  // In production the backend would filter by submittedBy
+  const list = $('my-requests-list');
+  const myItems = pending.filter(p => p.submittedBy === currentUser);
+
+  // Also check mock pending directly in demo mode
+  let items = myItems;
+  if (ADMIN_CONFIG.DEMO_MODE && items.length === 0) {
+    // Show all pending for demo
+    items = pending;
+  }
+
+  if (items.length === 0) {
+    list.innerHTML = '';
+    $('my-requests-empty').style.display = '';
+    return;
+  }
+  $('my-requests-empty').style.display = 'none';
+
+  list.innerHTML = items.map(p => {
     let changeObj = {};
     try { changeObj = JSON.parse(p.changeData); } catch {}
     const typeClass = 'type-' + p.changeType;
     const statusClass = 'status-' + p.status;
+    const statusLabel = p.status === 'pending' ? 'Awaiting Review'
+      : p.status === 'approved' ? 'Approved'
+      : 'Denied';
+    const statusColor = p.status === 'pending' ? 'var(--orange)'
+      : p.status === 'approved' ? 'var(--green)'
+      : 'var(--red)';
 
-    let detailHtml = '<table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>';
-    for (const k in changeObj) {
-      detailHtml += `<tr><td>${esc(k)}</td><td>${esc(String(changeObj[k]))}</td></tr>`;
+    let detailHtml = '';
+    if (Object.keys(changeObj).length > 0) {
+      detailHtml = '<table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>';
+      for (const k in changeObj) {
+        detailHtml += `<tr><td>${esc(k)}</td><td>${esc(String(changeObj[k]))}</td></tr>`;
+      }
+      detailHtml += '</tbody></table>';
     }
-    detailHtml += '</tbody></table>';
-
-    const actions = p.status === 'pending'
-      ? `<button class="btn btn-sm btn-success" onclick="handleApprove('${p.id}')">Approve</button>
-         <button class="btn btn-sm btn-danger" onclick="handleDeny('${p.id}')">Deny</button>`
-      : `<span style="font-size:.8rem;color:var(--gray-500);text-transform:uppercase">${esc(p.status)}</span>`;
 
     return `
       <div class="pending-card ${statusClass}">
@@ -224,16 +499,20 @@ function renderPending() {
           <span class="${typeClass}">${esc(p.changeType)}</span>
           <span>${esc(p.targetTab)}</span>
           <span>ID: ${esc(p.targetId)}</span>
-          <span>by ${esc(p.submittedBy)}</span>
           <span>${new Date(p.timestamp).toLocaleString()}</span>
         </div>
-        <div class="pending-detail">${detailHtml}</div>
-        <div class="pending-actions">${actions}</div>
+        ${detailHtml ? '<div class="pending-detail">' + detailHtml + '</div>' : ''}
+        <div class="pending-actions">
+          <span style="font-size:.85rem;font-weight:600;color:${statusColor}">${statusLabel}</span>
+        </div>
       </div>`;
   }).join('');
 }
 
-// --- Modal / Forms ---
+// =============================================
+// OWNER: Modal / Forms (for direct edits)
+// =============================================
+
 function openModal(title) {
   $('modal-title').textContent = title;
   $('modal-fields').innerHTML = '';
@@ -251,7 +530,6 @@ function addField(id, label, value, type) {
   if (type === 'textarea') {
     div.innerHTML = `<label for="field-${id}">${label}</label><textarea id="field-${id}">${esc(value || '')}</textarea>`;
   } else if (type === 'select') {
-    // value = { selected, options: [{value,label}] }
     const opts = value.options.map(o => `<option value="${esc(o.value)}" ${o.value === value.selected ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
     div.innerHTML = `<label for="field-${id}">${label}</label><select id="field-${id}">${opts}</select>`;
   } else {
@@ -265,7 +543,6 @@ function getFieldVal(id) {
   return el ? el.value : '';
 }
 
-// --- Building form ---
 function openBuildingForm(buildingId) {
   const isEdit = !!buildingId;
   const b = isEdit ? buildings.find(x => x.building_id === buildingId) : {};
@@ -294,7 +571,6 @@ function openBuildingForm(buildingId) {
   };
 }
 
-// --- Suite form ---
 function openSuiteForm(suiteId) {
   const isEdit = !!suiteId;
   const s = isEdit ? suites.find(x => x.suite_id === suiteId) : {};
@@ -324,7 +600,6 @@ function openSuiteForm(suiteId) {
   };
 }
 
-// --- Contact form ---
 function openContactForm(contactName) {
   const isEdit = !!contactName;
   const c = isEdit ? contacts.find(x => x.name === contactName) : {};
@@ -347,10 +622,10 @@ function openContactForm(contactName) {
   };
 }
 
-// --- Submit change ---
+// --- Submit change (owner modal) ---
 async function submitChange(changeType, targetTab, targetId, data) {
   const result = await API.callApi('submitChange', {
-    password: ADMIN_CONFIG.DEMO_MODE ? (currentRole === 'admin' ? 'admin123' : 'broker123') : '',
+    password: ADMIN_CONFIG.DEMO_MODE ? (currentRole === 'owner' ? 'owner123' : 'broker123') : '',
     changeType,
     targetTab,
     targetId,
@@ -372,10 +647,10 @@ async function submitRemove(targetTab, targetId, displayName) {
   await submitChange('remove', targetTab, targetId, {});
 }
 
-// --- Admin actions ---
+// --- Owner: approve/deny ---
 async function handleApprove(changeId) {
   const result = await API.callApi('approveChange', {
-    password: ADMIN_CONFIG.DEMO_MODE ? 'admin123' : '',
+    password: ADMIN_CONFIG.DEMO_MODE ? 'owner123' : '',
     changeId,
   });
   if (result.success) {
@@ -389,7 +664,7 @@ async function handleApprove(changeId) {
 async function handleDeny(changeId) {
   if (!confirm('Deny this change?')) return;
   const result = await API.callApi('denyChange', {
-    password: ADMIN_CONFIG.DEMO_MODE ? 'admin123' : '',
+    password: ADMIN_CONFIG.DEMO_MODE ? 'owner123' : '',
     changeId,
   });
   if (result.success) {
@@ -398,6 +673,19 @@ async function handleDeny(changeId) {
   } else {
     showToast(result.error || 'Failed', 'error');
   }
+}
+
+// --- Deep-link highlight ---
+function highlightPendingCard(changeId) {
+  setTimeout(() => {
+    const cards = document.querySelectorAll('.pending-card');
+    cards.forEach(card => {
+      if (card.innerHTML.includes(changeId)) {
+        card.style.boxShadow = '0 0 0 3px var(--brand)';
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }, 100);
 }
 
 // --- Toast ---

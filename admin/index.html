@@ -34,7 +34,7 @@
         <p id="login-error" class="error-text"></p>
       </form>
       <p class="demo-hint" id="demo-hint" style="display:none">
-        Demo mode — use <strong>broker123</strong> (broker) or <strong>admin123</strong> (admin)
+        Demo mode — use <strong>broker123</strong> (broker) or <strong>owner123</strong> (owner)
       </p>
     </div>
   </div>
@@ -53,27 +53,35 @@
     </nav>
 
     <aside class="sidebar" id="sidebar">
-      <a href="#" class="nav-link active" data-page="dashboard">
+      <!-- Owner nav -->
+      <a href="#" class="nav-link owner-only active" data-page="dashboard">
         <span class="nav-icon">📊</span> Dashboard
       </a>
-      <a href="#" class="nav-link" data-page="buildings">
+      <a href="#" class="nav-link owner-only" data-page="buildings">
         <span class="nav-icon">🏢</span> Buildings
       </a>
-      <a href="#" class="nav-link" data-page="suites">
+      <a href="#" class="nav-link owner-only" data-page="suites">
         <span class="nav-icon">🚪</span> Suites
       </a>
-      <a href="#" class="nav-link" data-page="contacts">
+      <a href="#" class="nav-link owner-only" data-page="contacts">
         <span class="nav-icon">👤</span> Contacts
       </a>
-      <a href="#" class="nav-link admin-only" data-page="pending">
+      <a href="#" class="nav-link owner-only" data-page="pending">
         <span class="nav-icon">📋</span> Pending Changes
         <span class="badge" id="pending-count" style="display:none">0</span>
+      </a>
+      <!-- Broker nav -->
+      <a href="#" class="nav-link broker-only active" data-page="submit-request">
+        <span class="nav-icon">📝</span> Submit Request
+      </a>
+      <a href="#" class="nav-link broker-only" data-page="my-requests">
+        <span class="nav-icon">📋</span> My Requests
       </a>
     </aside>
 
     <main class="main-content" id="main-content">
-      <!-- Dashboard -->
-      <div id="page-dashboard" class="page active">
+      <!-- Dashboard (owner) -->
+      <div id="page-dashboard" class="page owner-only active">
         <h2>Dashboard</h2>
         <div class="stat-grid">
           <div class="stat-card">
@@ -88,7 +96,7 @@
             <div class="stat-number" id="stat-contacts">-</div>
             <div class="stat-label">Contacts</div>
           </div>
-          <div class="stat-card admin-only">
+          <div class="stat-card owner-only">
             <div class="stat-number" id="stat-pending">-</div>
             <div class="stat-label">Pending Changes</div>
           </div>
@@ -99,8 +107,8 @@
         </div>
       </div>
 
-      <!-- Buildings -->
-      <div id="page-buildings" class="page">
+      <!-- Buildings (owner) -->
+      <div id="page-buildings" class="page owner-only">
         <div class="page-header">
           <h2>Buildings</h2>
           <button class="btn btn-primary" id="btn-add-building">+ Add Building</button>
@@ -123,8 +131,8 @@
         </div>
       </div>
 
-      <!-- Suites -->
-      <div id="page-suites" class="page">
+      <!-- Suites (owner) -->
+      <div id="page-suites" class="page owner-only">
         <div class="page-header">
           <h2>Suites</h2>
           <button class="btn btn-primary" id="btn-add-suite">+ Add Suite</button>
@@ -148,8 +156,8 @@
         </div>
       </div>
 
-      <!-- Contacts -->
-      <div id="page-contacts" class="page">
+      <!-- Contacts (owner) -->
+      <div id="page-contacts" class="page owner-only">
         <div class="page-header">
           <h2>Contacts</h2>
           <button class="btn btn-primary" id="btn-add-contact">+ Add Contact</button>
@@ -170,11 +178,52 @@
         </div>
       </div>
 
-      <!-- Pending Changes (admin only) -->
-      <div id="page-pending" class="page admin-only">
+      <!-- Pending Changes (owner) -->
+      <div id="page-pending" class="page owner-only">
         <h2>Pending Changes</h2>
         <div id="pending-list" class="pending-list"></div>
         <p id="pending-empty" style="display:none" class="empty-state">No pending changes.</p>
+      </div>
+
+      <!-- Submit Request (broker) -->
+      <div id="page-submit-request" class="page broker-only">
+        <h2>Submit a Change Request</h2>
+        <p class="page-desc">Select what you'd like to change and fill out the form. Your request will be reviewed by the owner before going live.</p>
+        <div class="request-form-wrap">
+          <div class="form-group">
+            <label for="req-type">What do you want to do?</label>
+            <select id="req-type">
+              <option value="">— Select —</option>
+              <option value="add">Add a new listing</option>
+              <option value="edit">Edit an existing listing</option>
+              <option value="remove">Remove a listing</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="req-tab">Category</label>
+            <select id="req-tab">
+              <option value="">— Select —</option>
+              <option value="Buildings">Building</option>
+              <option value="Suites">Suite</option>
+              <option value="Contacts">Contact</option>
+            </select>
+          </div>
+          <div id="req-target-wrap" class="form-group" style="display:none">
+            <label for="req-target">Select item to change</label>
+            <select id="req-target">
+              <option value="">— Select —</option>
+            </select>
+          </div>
+          <div id="req-fields"></div>
+          <button class="btn btn-primary btn-full" id="btn-submit-request" disabled>Submit Request</button>
+        </div>
+      </div>
+
+      <!-- My Requests (broker) -->
+      <div id="page-my-requests" class="page broker-only">
+        <h2>My Requests</h2>
+        <div id="my-requests-list" class="pending-list"></div>
+        <p id="my-requests-empty" style="display:none" class="empty-state">You haven't submitted any requests yet.</p>
       </div>
     </main>
   </div>
